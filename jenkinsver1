@@ -2,8 +2,8 @@ pipeline {
     agent { label 'agentnode' }
 
     environment {
-        DOCKER_USER = 'sankurohi'
-        DOCKER_IMAGE = 'java-springboot'
+        DOCKER_USER = 'saibhavani2658'
+        DOCKER_IMAGE = 'java-springbootapplication'
         DOCKER_TAG = 'version1'
     }
 
@@ -14,7 +14,7 @@ pipeline {
     stages {
         stage('SCM CHECKOUT') {
             steps {
-                git branch: 'main', url: 'https://github.com/Rohisanku0322/springboot-hello.git'
+                git branch: 'main', url: 'https://github.com/saibhavani2658/springboot-hello.git'
             }
         }
 
@@ -56,15 +56,15 @@ pipeline {
                     docker pull $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
 
                     # Get running container image ID (if exists)
-                    CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' java-springboot 2>/dev/null || true)
+                    CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' java-springbootapplication 2>/dev/null || true)
 
                     # Get latest image ID
                     LATEST_IMAGE=$(docker images -q $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG})
 
                     if [ "$CURRENT_IMAGE" != "$LATEST_IMAGE" ]; then
                         echo "🔄 Updating container with new image..."
-                        docker rm -f java-springboot || true
-                        docker run -d --name java-springboot -p 8080:8090 $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker rm -f java-springbootapplication || true
+                        docker run -d --name java-springbootapplication -p 8080:8090 $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
                     else
                         echo "✅ Container already running latest image. No update needed."
                     fi
