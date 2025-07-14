@@ -1,0 +1,87 @@
+pipeline {
+    agent { label 'agentnode' }
+
+    environment {
+        DOCKER_USER = 'sankurohi'
+        DOCKER_IMAGE = 'java-springboot'
+        DOCKER_TAG = 'version1'
+    }
+
+    triggers {
+        githubPush()
+    }
+
+    stages {
+        stage('SCM CHECKOUT') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Rohisanku0322/springboot-hello.git'
+            }
+        }
+
+        stage('Build Artifact') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Docker Image') {
+            steps {
+                sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
+            }
+        }
+
+        stage('DockerHub Push') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'docker_cred',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker push $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                echo '🚀 Deploying container on port 8090...'
+                sh '''
+                    # Pull latest image
+                    docker pull $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
+
+                    # Get running container image ID (if exists)
+                    CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' java-springboot 2>/dev/null || true)
+
+                    # Get latest image ID
+                    LATEST_IMAGE=$(docker images -q $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG})
+
+                    if [ "$CURRENT_IMAGE" != "$LATEST_IMAGE" ]; then
+                        echo "🔄 Updating container with new image..."
+                        docker rm -f java-springboot || true
+                        docker run -d --name java-springboot -p 8080:8090 $DOCKER_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
+                    else
+                        echo "✅ Container already running latest image. No update needed."
+                    fi
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline succeeded.'
+        }
+        failure {
+            echo '❌ Pipeline failed.'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
